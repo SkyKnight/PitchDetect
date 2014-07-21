@@ -40,7 +40,7 @@ var detectorElem,
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
-	request.open("GET", "../sounds/whistling3.ogg", true);
+	request.open("GET", "./sounds/whistling3.ogg", true);
 	request.responseType = "arraybuffer";
 	request.onload = function() {
 	  audioContext.decodeAudioData( request.response, function(buffer) { 
@@ -244,41 +244,7 @@ function centsOffFromPitch( frequency, note ) {
 	return Math.floor( 1200 * Math.log( frequency / frequencyFromNoteNumber( note ))/Math.log(2) );
 }
 
-// this is a float version of the algorithm below - but it's not currently used.
-/*
-function autoCorrelateFloat( buf, sampleRate ) {
-	var MIN_SAMPLES = 4;	// corresponds to an 11kHz signal
-	var MAX_SAMPLES = 1000; // corresponds to a 44Hz signal
-	var SIZE = 1000;
-	var best_offset = -1;
-	var best_correlation = 0;
-	var rms = 0;
 
-	if (buf.length < (SIZE + MAX_SAMPLES - MIN_SAMPLES))
-		return -1;  // Not enough data
-
-	for (var i=0;i<SIZE;i++)
-		rms += buf[i]*buf[i];
-	rms = Math.sqrt(rms/SIZE);
-
-	for (var offset = MIN_SAMPLES; offset <= MAX_SAMPLES; offset++) {
-		var correlation = 0;
-
-		for (var i=0; i<SIZE; i++) {
-			correlation += Math.abs(buf[i]-buf[i+offset]);
-		}
-		correlation = 1 - (correlation/SIZE);
-		if (correlation > best_correlation) {
-			best_correlation = correlation;
-			best_offset = offset;
-		}
-	}
-	if ((rms>0.1)&&(best_correlation > 0.1)) {
-		console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")");
-	}
-//	var best_frequency = sampleRate/best_offset;
-}
-*/
 
 function autoCorrelate( buf, sampleRate ) {
 	var MIN_SAMPLES = 4;	// corresponds to an 11kHz signal
@@ -328,59 +294,126 @@ function autoCorrelate( buf, sampleRate ) {
 //	var best_frequency = sampleRate/best_offset;
 }
 
+var GRAPH_LENGTH = 1500;
+var EVENT_THRESHOLD = 0.2;
+var CLEAR_EVENT_THRESHOLD = 0.1;
+var MAX_VALUE = 1000;
+var blocked = [];
+var STRING_FREQUENCIES = [null, 329.63, 246.94, 196.00, 146.83, 110.00, 82.407];
+var HALF_NOTE_STEP = 0.0595;
+var SAMPLING_FREQUENCY = 44100;
+var N = 2048;
+
+var fullFret = createFullFretNotes();
+var fullFretNotes = {};
+
+for (var i = 0; i < fullFret.length; i++) {
+	for (var j = 0; j < fullFret[i].length; j++) {
+		fullFretNotes[getSoundPosition(i+1, j)] = fullFret[i][j];
+	};
+};
+
+function getPeaks(xRe) {
+			var peaks = [];
+			var clearpeaks = [];
+			for( var x = 0; x < GRAPH_LENGTH; x++){	
+				if(x>1 && xRe[x]>EVENT_THRESHOLD*MAX_VALUE){
+					if( xRe [ x ] > xRe [ x+1 ] && xRe [ x ] > xRe [ x-1 ]){
+						peaks.push(x); 
+					}
+				}
+				if(x>1 && xRe[x]>CLEAR_EVENT_THRESHOLD*MAX_VALUE){
+					if( xRe [ x ] > xRe [ x+1 ] && xRe [ x ] > xRe [ x-1 ]){
+						clearpeaks.push(x); 
+					}
+				}
+			}
+			
+			if(blocked.length > 0){
+				var toClear = 0;
+				for(var position=0; position < blocked.length; position++){
+					if( xRe [blocked[position]] < CLEAR_EVENT_THRESHOLD*MAX_VALUE){
+						toClear++;
+						//blocked.splice(position, 1);
+						
+					}
+					if(toClear == blocked.length){
+						console.log("odblokowany ");
+						console.log(blocked);
+						blocked.splice(0, blocked.length);
+					}
+				}
+				//if(clearpeaks.length==0 || clearpeaks[0]/blocked<0.9 || clearpeaks[0]/blocked > 1.1){
+				//	
+				//	blocked = -1;
+				//}
+			}
+
+			return peaks;
+}
+
+function isEvent(position, value, peaks ) {
+			if( peaks.length==0){ return false; }
+			if( peaks[0]/position<0.9 || peaks[0]/position > 1.1){
+				return false;
+			} 
+			if(blocked.indexOf(position) != -1){
+				console.log("blocked "+position);
+				return false;
+			}
+			if( value > EVENT_THRESHOLD * MAX_VALUE ){
+				console.log("zablokowany od:"+Math.floor(position*0.9)+" do:"+Math.ceil(position*1.1));
+				for( var i = Math.floor(position*0.9); i < Math.ceil(position*1.1); i++){
+					blocked.push(i);
+				}
+				return true;				
+			}
+			return false;
+		}
+
+function getSoundPosition(string, position){
+			var iStringFrequency 	= STRING_FREQUENCIES[string];									// Czestotliwosc struny
+			var iSoundFrequency 		= iStringFrequency * Math.pow(1+HALF_NOTE_STEP, position);		// Wyliczamy czestotliwosc dzwieku z ciagu geometrycznego
+			var iPosition 			= Math.round( iSoundFrequency / ((SAMPLING_FREQUENCY * 0.5) / (N * 0.5)) );	// Wyliczamy pozycje
+			return iPosition;
+		}
+
+			// var iE6Pos 	= getSoundPosition(6, 0);
+			// var iAPos 	= getSoundPosition(5, 0);
+			// var iDPos 	= getSoundPosition(4, 0);
+			// var iGPos 	= getSoundPosition(3, 0);
+			// var iBPos 	= getSoundPosition(2, 0);
+			// var iE1Pos	= getSoundPosition(1, 0);
+
+			// console.log('E6: ' + iE6Pos);
+			// console.log('A: ' + iAPos);
+			// console.log('D: ' + iDPos);
+			// console.log('G: ' + iGPos);
+			// console.log('B: ' + iBPos);
+			// console.log('E1 ' + iE1Pos);
+
 function updatePitch( time ) {
 	var cycles = new Array;
-	analyser.getByteTimeDomainData( buf );
+	analyser.getByteFrequencyData( buf );
+	var peaks = getPeaks(buf);
+	console.log(peaks);
 
-/*
-// old zero-crossing code
-
-	var i=0;
-	// find the first point
-	var last_zero = findNextPositiveZeroCrossing( 0 );
-
-	var n=0;
-	// keep finding points, adding cycle lengths to array
-	while ( last_zero != -1) {
-		var next_zero = findNextPositiveZeroCrossing( last_zero + 1 );
-		if (next_zero > -1)
-			cycles.push( next_zero - last_zero );
-		last_zero = next_zero;
-
-		n++;
-		if (n>1000)
-			break;
+	for(var p in fullFretNotes) {
+		if(isEvent(p, buf[p], peaks))
+			console.log(fullFretNotes[p]);
 	}
 
-	// 1?: average the array
-	var num_cycles = cycles.length;
-	var sum = 0;
-	var pitch = 0;
+	// console.log('E6: ' + isEvent(iE6Pos, buf[iE6Pos], peaks));
+	// console.log('A: ' + isEvent(iAPos, buf[iAPos], peaks));
+	// console.log('D: ' + isEvent(iDPos, buf[iDPos], peaks));
+	// console.log('G: ' + isEvent(iGPos, buf[iGPos], peaks));
+	// console.log('B: ' + isEvent(iBPos, buf[iBPos], peaks));
+	// console.log('E1: ' + isEvent(iE1Pos, buf[iE1Pos], peaks));
 
-	for (var i=0; i<num_cycles; i++) {
-		sum += cycles[i];
-	}
 
-	if (num_cycles) {
-		sum /= num_cycles;
-		pitch = audioContext.sampleRate/sum;
-	}
-
-// confidence = num_cycles / num_possible_cycles = num_cycles / (audioContext.sampleRate/)
-	var confidence = (num_cycles ? ((num_cycles/(pitch * buflen / audioContext.sampleRate)) * 100) : 0);
-*/
-
-/*
-	console.log( 
-		"Cycles: " + num_cycles + 
-		" - average length: " + sum + 
-		" - pitch: " + pitch + "Hz " +
-		" - note: " + noteFromPitch( pitch ) +
-		" - confidence: " + confidence + "% "
-		);
-*/
 	// possible other approach to confidence: sort the array, take the median; go through the array and compute the average deviation
-	var ac = autoCorrelate( buf, audioContext.sampleRate );
+	//var ac = autoCorrelate( buf, audioContext.sampleRate );
+	ac = -1;
 
 // 	detectorElem.className = (confidence>50)?"confident":"vague";
 

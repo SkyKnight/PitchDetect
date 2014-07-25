@@ -399,8 +399,10 @@ function updatePitch( time ) {
 	console.log(peaks);
 
 	for(var p in fullFretNotes) {
-		if(isEvent(p, buf[p], peaks))
+		if(isEvent(p, buf[p], peaks)) {
 			console.log(fullFretNotes[p]);
+			noteElem.innerHTML = fullFretNotes[p];
+		}
 	}
 
 	// console.log('E6: ' + isEvent(iE6Pos, buf[iE6Pos], peaks));
@@ -443,30 +445,30 @@ function updatePitch( time ) {
 		waveCanvas.stroke();
 	}
 
- 	if (ac == -1) {
- 		detectorElem.className = "vague";
-	 	pitchElem.innerText = "--";
-		noteElem.innerText = "-";
-		detuneElem.className = "";
-		detuneAmount.innerText = "--";
- 	} else {
-	 	detectorElem.className = "confident";
-	 	pitch = ac;
-	 	pitchElem.innerText = Math.floor( pitch ) ;
-	 	var note =  noteFromPitch( pitch );
-		noteElem.innerHTML = noteStrings[note%12];
-		var detune = centsOffFromPitch( pitch, note );
-		if (detune == 0 ) {
-			detuneElem.className = "";
-			detuneAmount.innerHTML = "--";
-		} else {
-			if (detune < 0)
-				detuneElem.className = "flat";
-			else
-				detuneElem.className = "sharp";
-			detuneAmount.innerHTML = Math.abs( detune );
-		}
-	}
+ // 	if (ac == -1) {
+ // 		detectorElem.className = "vague";
+	//  	pitchElem.innerText = "--";
+	// 	noteElem.innerText = "-";
+	// 	detuneElem.className = "";
+	// 	detuneAmount.innerText = "--";
+ // 	} else {
+	//  	detectorElem.className = "confident";
+	//  	pitch = ac;
+	//  	pitchElem.innerText = Math.floor( pitch ) ;
+	//  	var note =  noteFromPitch( pitch );
+	// 	noteElem.innerHTML = noteStrings[note%12];
+	// 	var detune = centsOffFromPitch( pitch, note );
+	// 	if (detune == 0 ) {
+	// 		detuneElem.className = "";
+	// 		detuneAmount.innerHTML = "--";
+	// 	} else {
+	// 		if (detune < 0)
+	// 			detuneElem.className = "flat";
+	// 		else
+	// 			detuneElem.className = "sharp";
+	// 		detuneAmount.innerHTML = Math.abs( detune );
+	// 	}
+	// }
 
 	if (!window.requestAnimationFrame)
 		window.requestAnimationFrame = window.webkitRequestAnimationFrame;

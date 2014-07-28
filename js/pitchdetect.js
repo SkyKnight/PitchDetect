@@ -36,7 +36,11 @@ var detectorElem,
 	pitchElem,
 	noteElem,
 	detuneElem,
-	detuneAmount;
+	detuneAmount,
+	detectionMode,
+	detectionModeElem;
+
+detectionMode = 'ac';
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
@@ -61,6 +65,11 @@ window.onload = function() {
 	noteElem = document.getElementById( "note" );
 	detuneElem = document.getElementById( "detune" );
 	detuneAmount = document.getElementById( "detune_amt" );
+	//detectionModeElem
+	$('input:radio').change(function() {
+		//alert(this.value);
+		detectionMode = this.value;
+	});
 
 	detectorElem.ondragenter = function () { 
 		this.classList.add("droptarget"); 
@@ -394,28 +403,51 @@ function getSoundPosition(string, position){
 
 function updatePitch( time ) {
 	var cycles = new Array;
-	analyser.getByteFrequencyData( buf );
-	var peaks = getPeaks(buf);
-	console.log(peaks);
+	var ac;
 
-	for(var p in fullFretNotes) {
-		if(isEvent(p, buf[p], peaks)) {
-			console.log(fullFretNotes[p]);
-			noteElem.innerHTML = fullFretNotes[p];
+	if(detectionMode == 'ac') {
+		analyser.getByteTimeDomainData( buf );
+		ac = autoCorrelate( buf, audioContext.sampleRate );
+
+	 	if (ac == -1) {
+	 		detectorElem.className = "vague";
+		 	pitchElem.innerText = "--";
+			noteElem.innerText = "-";
+			detuneElem.className = "";
+			detuneAmount.innerText = "--";
+	 	} else {
+		 	detectorElem.className = "confident";
+		 	pitch = ac;
+		 	pitchElem.innerText = Math.floor( pitch ) ;
+		 	var note =  noteFromPitch( pitch );
+			noteElem.innerHTML = noteStrings[note%12];
+			var detune = centsOffFromPitch( pitch, note );
+			if (detune == 0 ) {
+				detuneElem.className = "";
+				detuneAmount.innerHTML = "--";
+			} else {
+				if (detune < 0)
+					detuneElem.className = "flat";
+				else
+					detuneElem.className = "sharp";
+				detuneAmount.innerHTML = Math.abs( detune );
+			}
 		}
+	} else if(detectionMode == 'fft') {
+		analyser.getByteFrequencyData( buf );
+		ac = -1;
+		var peaks = getPeaks(buf);
+		console.log(peaks);
+
+		for(var p in fullFretNotes) {
+			if(isEvent(p, buf[p], peaks)) {
+				console.log(fullFretNotes[p]);
+				noteElem.innerHTML = fullFretNotes[p];
+			}
+		}
+	} else if(detectionMode == 'fft2') {
+
 	}
-
-	// console.log('E6: ' + isEvent(iE6Pos, buf[iE6Pos], peaks));
-	// console.log('A: ' + isEvent(iAPos, buf[iAPos], peaks));
-	// console.log('D: ' + isEvent(iDPos, buf[iDPos], peaks));
-	// console.log('G: ' + isEvent(iGPos, buf[iGPos], peaks));
-	// console.log('B: ' + isEvent(iBPos, buf[iBPos], peaks));
-	// console.log('E1: ' + isEvent(iE1Pos, buf[iE1Pos], peaks));
-
-
-	// possible other approach to confidence: sort the array, take the median; go through the array and compute the average deviation
-	//var ac = autoCorrelate( buf, audioContext.sampleRate );
-	ac = -1;
 
 // 	detectorElem.className = (confidence>50)?"confident":"vague";
 
@@ -445,30 +477,7 @@ function updatePitch( time ) {
 		waveCanvas.stroke();
 	}
 
- // 	if (ac == -1) {
- // 		detectorElem.className = "vague";
-	//  	pitchElem.innerText = "--";
-	// 	noteElem.innerText = "-";
-	// 	detuneElem.className = "";
-	// 	detuneAmount.innerText = "--";
- // 	} else {
-	//  	detectorElem.className = "confident";
-	//  	pitch = ac;
-	//  	pitchElem.innerText = Math.floor( pitch ) ;
-	//  	var note =  noteFromPitch( pitch );
-	// 	noteElem.innerHTML = noteStrings[note%12];
-	// 	var detune = centsOffFromPitch( pitch, note );
-	// 	if (detune == 0 ) {
-	// 		detuneElem.className = "";
-	// 		detuneAmount.innerHTML = "--";
-	// 	} else {
-	// 		if (detune < 0)
-	// 			detuneElem.className = "flat";
-	// 		else
-	// 			detuneElem.className = "sharp";
-	// 		detuneAmount.innerHTML = Math.abs( detune );
-	// 	}
-	// }
+
 
 	if (!window.requestAnimationFrame)
 		window.requestAnimationFrame = window.webkitRequestAnimationFrame;

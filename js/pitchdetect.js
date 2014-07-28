@@ -28,6 +28,7 @@ var audioContext = new AudioContext();
 var isPlaying = false;
 var sourceNode = null;
 var analyser = null;
+var processorNode = audioContext.createScriptProcessor(16384, 1, 1);
 var theBuffer = null;
 var DEBUGCANVAS = null;
 var detectorElem, 
@@ -40,7 +41,30 @@ var detectorElem,
 	detectionMode,
 	detectionModeElem;
 
+var mediaStreamSource;
+
 detectionMode = 'ac';
+
+var calculated = new Float32Array(16348);
+
+processorNode.onaudioprocess = function(e) {
+	//console.log('processorNode');
+	var channelData = e.inputBuffer.getChannelData(0);
+	var data = new complex_array.ComplexArray(16384);
+	data.map(function(value, i, n) {
+  		value.real = channelData[i];
+	})
+	var frequencies = data.FFT();
+	
+	frequencies.map(function(frequency, i, n) {
+	  calculated[i] = frequency.real;
+	})
+
+
+
+};
+
+
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
@@ -67,8 +91,18 @@ window.onload = function() {
 	detuneAmount = document.getElementById( "detune_amt" );
 	//detectionModeElem
 	$('input:radio').change(function() {
-		//alert(this.value);
+		var previousMode = detectionMode;
 		detectionMode = this.value;
+		var stream = mediaStreamSource || sourceNode;
+		if(detectionMode == 'fft2') {
+			analyser.disconnect();
+			stream.connect(processorNode);
+			processorNode.connect( audioContext.destination );
+		} else if(previousMode == 'fft2') {
+			processorNode.disconnect();
+			stream.connect(analyser);
+			audioContext.destination.disconnect();
+		}
 	});
 
 	detectorElem.ondragenter = function () { 
@@ -116,7 +150,7 @@ function getUserMedia(dictionary, callback) {
 
 function gotStream(stream) {
     // Create an AudioNode from the stream.
-    var mediaStreamSource = audioContext.createMediaStreamSource(stream);
+    mediaStreamSource = audioContext.createMediaStreamSource(stream);
 
     // Connect it to the destination.
     analyser = audioContext.createAnalyser();
@@ -470,9 +504,9 @@ function updatePitch( time ) {
 		waveCanvas.stroke();
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.beginPath();
-		waveCanvas.moveTo(0,buf[0]);
+		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[i]*1000), 0));
 		for (var i=1;i<512;i++) {
-			waveCanvas.lineTo(i,buf[i]);
+			waveCanvas.lineTo(i,buf[i]||(calculated[i] * 1000));
 		}
 		waveCanvas.stroke();
 	}

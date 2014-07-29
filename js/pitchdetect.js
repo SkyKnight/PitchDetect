@@ -98,6 +98,9 @@ window.onload = function() {
 			analyser.disconnect();
 			stream.connect(processorNode);
 			processorNode.connect( audioContext.destination );
+			for (var i = 0; i < buf.length; i++) {
+				buf[i] = null;
+			};
 		} else if(previousMode == 'fft2') {
 			processorNode.disconnect();
 			stream.connect(analyser);
@@ -506,7 +509,7 @@ function updatePitch( time ) {
 		waveCanvas.beginPath();
 		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[i]*1000), 0));
 		for (var i=1;i<512;i++) {
-			waveCanvas.lineTo(i,buf[i]||(calculated[i] * 1000));
+			waveCanvas.lineTo(i,buf[i]||((calculated[i] * 1000)));
 		}
 		waveCanvas.stroke();
 	}

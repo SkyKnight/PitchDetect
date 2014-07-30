@@ -28,7 +28,10 @@ var audioContext = new AudioContext();
 var isPlaying = false;
 var sourceNode = null;
 var analyser = null;
-var processorNode = audioContext.createScriptProcessor(16384, 1, 1);
+var samplesCount = 256;
+var bufferIterations = 0;
+var bufferSize = 16348;
+var processorNode = audioContext.createScriptProcessor(samplesCount, 1, 1);
 var theBuffer = null;
 var DEBUGCANVAS = null;
 var detectorElem, 
@@ -45,20 +48,41 @@ var mediaStreamSource;
 
 detectionMode = 'ac';
 
-var calculated = new Float32Array(16348);
+var calculated = new Float32Array(bufferSize);
+
 
 processorNode.onaudioprocess = function(e) {
+
+	//dodajemy do buforu
+
 	//console.log('processorNode');
+	var offset = samplesCount*bufferIterations;
+	if(offset + samplesCount >= bufferSize ){
+		for(var i = 0; i<=bufferSize-samplesCount-1; i++){
+			calculated[i] = calculated[samplesCount+i];
+		}
+		bufferIterations--;
+	}
+
+
 	var channelData = e.inputBuffer.getChannelData(0);
-	var data = new complex_array.ComplexArray(16384);
-	data.map(function(value, i, n) {
-  		value.real = channelData[i];
-	})
-	var frequencies = data.FFT();
+
+	for(var i = 0; i<samplesCount; i++){
+		calculated[offset+i] = channelData[i];
+	}
+	bufferIterations++;
+
+	console.log(offset);
+
+	// var data = new complex_array.ComplexArray(16384);
+	// data.map(function(value, i, n) {
+ //  		value.real = channelData[i];
+	// })
+	// var frequencies = data.FFT();
 	
-	frequencies.map(function(frequency, i, n) {
-	  calculated[i] = frequency.real;
-	})
+	// frequencies.map(function(frequency, i, n) {
+	//   calculated[i] = frequency.real;
+	// })
 
 
 
@@ -507,9 +531,9 @@ function updatePitch( time ) {
 		waveCanvas.stroke();
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.beginPath();
-		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[i]*1000), 0));
+		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[i]*1000+100), 0));
 		for (var i=1;i<512;i++) {
-			waveCanvas.lineTo(i,buf[i]||((calculated[i] * 1000)));
+			waveCanvas.lineTo(i,buf[i]||((calculated[i] * 1000+100)));
 		}
 		waveCanvas.stroke();
 	}

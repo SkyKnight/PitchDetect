@@ -30,10 +30,11 @@ var sourceNode = null;
 var analyser = null;
 var samplesCount = 256;
 var bufferIterations = 0;
-var bufferSize = 16348;
+var bufferSize = Math.pow(2,14);
 var processorNode = audioContext.createScriptProcessor(samplesCount, 1, 1);
 var theBuffer = null;
 var DEBUGCANVAS = null;
+	var offset = 0;
 var detectorElem, 
 	canvasElem,
 	waveCanvas,
@@ -48,7 +49,7 @@ var mediaStreamSource;
 
 detectionMode = 'ac';
 
-var calculated = new Float32Array(bufferSize);
+var calculated = new Float32Array(bufferSize*100);
 
 
 processorNode.onaudioprocess = function(e) {
@@ -56,12 +57,14 @@ processorNode.onaudioprocess = function(e) {
 	//dodajemy do buforu
 
 	//console.log('processorNode');
-	var offset = samplesCount*bufferIterations;
-	if(offset + samplesCount >= bufferSize ){
-		for(var i = 0; i<=bufferSize-samplesCount-1; i++){
-			calculated[i] = calculated[samplesCount+i];
+	offset = samplesCount*bufferIterations;
+	if(offset + samplesCount >= bufferSize * 100 ){
+		console.log('przepisywanie');
+		for(var i = 0; i<=bufferSize-samplesCount; i++){
+			calculated[i] = calculated[offset-bufferSize+i];
 		}
-		bufferIterations--;
+		bufferIterations=(bufferSize-samplesCount)/samplesCount;
+		offset = samplesCount*bufferIterations;
 	}
 
 
@@ -72,7 +75,7 @@ processorNode.onaudioprocess = function(e) {
 	}
 	bufferIterations++;
 
-	console.log(offset);
+	//console.log(offset);
 
 	// var data = new complex_array.ComplexArray(16384);
 	// data.map(function(value, i, n) {
@@ -532,8 +535,9 @@ function updatePitch( time ) {
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.beginPath();
 		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[i]*1000+100), 0));
-		for (var i=1;i<512;i++) {
-			waveCanvas.lineTo(i,buf[i]||((calculated[i] * 1000+100)));
+		
+		for (var i=0;i<512;i++) {
+			waveCanvas.lineTo(i,buf[i] || ((calculated[i+offset-samplesCount] * 1000+100)));
 		}
 		waveCanvas.stroke();
 	}

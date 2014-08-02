@@ -30,7 +30,7 @@ var sourceNode = null;
 var analyser = null;
 var samplesCount = 256;
 var bufferIterations = 0;
-var bufferSize = 16348;
+var bufferSize = 16384;
 var processorNode = audioContext.createScriptProcessor(samplesCount, 1, 1);
 var theBuffer = null;
 var DEBUGCANVAS = null;
@@ -48,31 +48,79 @@ var mediaStreamSource;
 
 detectionMode = 'ac';
 
-var calculated = new Float32Array(bufferSize);
-
+var calculated = new Float32Array(bufferSize*2);
+var readingOffset = 0;
+var writingOffset1 = 0;
+var writingOffset2 = -1;
 
 processorNode.onaudioprocess = function(e) {
 
-	//dodajemy do buforu
-
-	//console.log('processorNode');
-	var offset = samplesCount*bufferIterations;
-	if(offset + samplesCount >= bufferSize ){
-		for(var i = 0; i<=bufferSize-samplesCount-1; i++){
-			calculated[i] = calculated[samplesCount+i];
-		}
-		bufferIterations--;
-	}
-
-
 	var channelData = e.inputBuffer.getChannelData(0);
 
-	for(var i = 0; i<samplesCount; i++){
-		calculated[offset+i] = channelData[i];
-	}
-	bufferIterations++;
+	// pierwsze napelnienie poczatkowej czesci 
+	if(readingOffset == 0 && writingOffset1 < bufferSize) {
+		for(var i = 0; i<samplesCount; i++){
+			calculated[writingOffset1+i] = channelData[i];
+		}
+		writingOffset1 += samplesCount;
+	} else if(readingOffset >= bufferSize) {
+		writingOffset1 = bufferSize - samplesCount;
+		readingOffset = 0;
+		writingOffset2 = -1;
+		for(var i = 0; i<samplesCount; i++){
+			calculated[writingOffset1+i] = channelData[i];
+		}
+	} else {
+		readingOffset += samplesCount;
 
-	console.log(offset);
+		if(writingOffset2 < 0 && writingOffset1 >= bufferSize + samplesCount)
+			writingOffset2 = 0;
+
+		if(writingOffset2 > 0) {
+			for(var i = 0; i<samplesCount; i++){
+				calculated[writingOffset1+i] = calculated[writingOffset2+i] = channelData[i];
+			}
+			writingOffset2 += samplesCount;
+		} else {
+			for(var i = 0; i<samplesCount; i++){
+				calculated[writingOffset1+i] = channelData[i];
+			}
+		}
+		writingOffset1 += samplesCount;
+		
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+	// //dodajemy do buforu
+	// var offset = samplesCount*bufferIterations;
+	// if(offset + samplesCount >= bufferSize ){
+	// 	for(var i = 0; i<=bufferSize-samplesCount; i++){
+	// 		calculated[i] = calculated[samplesCount+i];
+	// 	}
+	// 	bufferIterations--;
+	// }
+
+
+	
+	// var channelDataOutput = e.outputBuffer.getChannelData(0);
+
+	// for(var i = 0; i<samplesCount; i++){
+	// 	calculated[offset+i] = channelData[i];
+	// 	//channelDataOutput[i] = channelData[i];
+	// }
+	// bufferIterations++;
+	
+// TODO: asynchroniczne wywolanie przez setTimeout
 
 	// var data = new complex_array.ComplexArray(16384);
 	// data.map(function(value, i, n) {
@@ -531,9 +579,9 @@ function updatePitch( time ) {
 		waveCanvas.stroke();
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.beginPath();
-		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[i]*1000+100), 0));
+		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[readingOffset]*100+100), 0));
 		for (var i=1;i<512;i++) {
-			waveCanvas.lineTo(i,buf[i]||((calculated[i] * 1000+100)));
+			waveCanvas.lineTo(i,buf[i]||((calculated[readingOffset+i] * 100+100)));
 		}
 		waveCanvas.stroke();
 	}

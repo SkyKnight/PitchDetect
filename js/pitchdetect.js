@@ -30,10 +30,11 @@ var sourceNode = null;
 var analyser = null;
 var samplesCount = 256;
 var bufferIterations = 0;
-var bufferSize = 16384;
+var bufferSize = Math.pow(2,14);
 var processorNode = audioContext.createScriptProcessor(samplesCount, 1, 1);
 var theBuffer = null;
 var DEBUGCANVAS = null;
+	var offset = 0;
 var detectorElem, 
 	canvasElem,
 	waveCanvas,
@@ -48,6 +49,7 @@ var mediaStreamSource;
 
 detectionMode = 'ac';
 
+var calculated = new Float32Array(bufferSize*100);
 var calculated = new Float32Array(bufferSize*2);
 var readingOffset = 0;
 var writingOffset1 = 0;

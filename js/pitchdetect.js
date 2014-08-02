@@ -101,7 +101,7 @@ processorNode.onaudioprocess = function(e) {
 		var frequencies = data.FFT();
 		
 		frequencies.map(function(frequency, i, n) {
-		  calculated[i] = frequency.real;
+		  calculated[i] = Math.abs(frequency.real);
 		})
 	}, 1);
 };
@@ -426,8 +426,8 @@ function getPeaks(xRe) {
 						
 					}
 					if(toClear == blocked.length){
-						console.log("odblokowany ");
-						console.log(blocked);
+						//console.log("odblokowany ");
+						//console.log(blocked);
 						blocked.splice(0, blocked.length);
 					}
 				}
@@ -446,11 +446,11 @@ function isEvent(position, value, peaks ) {
 				return false;
 			} 
 			if(blocked.indexOf(position) != -1){
-				console.log("blocked "+position);
+				//console.log("blocked "+position);
 				return false;
 			}
 			if( value > EVENT_THRESHOLD * MAX_VALUE ){
-				console.log("zablokowany od:"+Math.floor(position*0.9)+" do:"+Math.ceil(position*1.1));
+				//console.log("zablokowany od:"+Math.floor(position*0.9)+" do:"+Math.ceil(position*1.1));
 				for( var i = Math.floor(position*0.9); i < Math.ceil(position*1.1); i++){
 					blocked.push(i);
 				}
@@ -516,11 +516,11 @@ function updatePitch( time ) {
 		analyser.getByteFrequencyData( buf );
 		ac = -1;
 		var peaks = getPeaks(buf);
-		console.log(peaks);
+		//console.log(peaks);
 
 		for(var p in fullFretNotes) {
 			if(isEvent(p, buf[p], peaks)) {
-				console.log(fullFretNotes[p]);
+				//console.log(fullFretNotes[p]);
 				noteElem.innerHTML = fullFretNotes[p];
 			}
 		}
@@ -533,7 +533,7 @@ function updatePitch( time ) {
 	// TODO: Paint confidence meter on canvasElem here.
 
 	if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
-		waveCanvas.clearRect(0,0,512,256);
+		waveCanvas.clearRect(0,0,8192,256);
 		waveCanvas.strokeStyle = "red";
 		waveCanvas.beginPath();
 		waveCanvas.moveTo(0,0);
@@ -550,7 +550,7 @@ function updatePitch( time ) {
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.beginPath();
 		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[0]*100+100), 0));
-		for (var i=1;i<512;i++) {
+		for (var i=1;i<8192;i++) {
 			waveCanvas.lineTo(i,buf[i]||((calculated[i] * 100+100)));
 		}
 		waveCanvas.stroke();

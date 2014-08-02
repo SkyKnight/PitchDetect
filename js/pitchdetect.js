@@ -78,7 +78,7 @@ processorNode.onaudioprocess = function(e) {
 		if(writingOffset2 < 0 && writingOffset1 >= bufferSize + samplesCount)
 			writingOffset2 = 0;
 
-		if(writingOffset2 > 0) {
+		if(writingOffset2 >= 0) {
 			for(var i = 0; i<samplesCount; i++){
 				calculated[writingOffset1+i] = calculated[writingOffset2+i] = channelData[i];
 			}

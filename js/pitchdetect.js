@@ -94,15 +94,28 @@ processorNode.onaudioprocess = function(e) {
 
 	// TODO: asynchroniczne wywolanie przez setTimeout
 	setTimeout(function() {
-		var data = new complex_array.ComplexArray(bufferSize);
-		data.map(function(value, i, n) {
-	  		value.real = bufferedData[i+readingOffset];
-		})
-		var frequencies = data.FFT();
+			for(var i = 0; i<bufferSize; i++){
+				calculated[i] = bufferedData[readingOffset+i];
+			}
+		// var data = new complex_array.ComplexArray(bufferSize);
+		// data.map(function(value, i, n) {
+	 //  		value.real = bufferedData[i+readingOffset];
+		// })
+		// var frequencies = data.FFT();
 		
-		frequencies.map(function(frequency, i, n) {
-		  calculated[i] = Math.abs(frequency.real);
-		})
+		// frequencies.map(function(frequency, i, n) {
+		//   calculated[i] = Math.abs(frequency.real)*100;
+		// })
+
+		// var peaks = getPeaks(calculated);
+		// console.log(peaks);
+
+		// for(var p in fullFretNotes) {
+		// 	if(isEvent(p, calculated[p], peaks)) {
+		// 		console.log(fullFretNotes[p]);
+		// 		noteElem.innerHTML = fullFretNotes[p];
+		// 	}
+		// }
 	}, 1);
 };
 
@@ -110,7 +123,7 @@ processorNode.onaudioprocess = function(e) {
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
-	request.open("GET", "./sounds/whistling3.ogg", true);
+	request.open("GET", "./sounds/440Hz-A.ogg", true);
 	request.responseType = "arraybuffer";
 	request.onload = function() {
 	  audioContext.decodeAudioData( request.response, function(buffer) { 
@@ -385,12 +398,13 @@ function autoCorrelate( buf, sampleRate ) {
 var GRAPH_LENGTH = 1500;
 var EVENT_THRESHOLD = 0.2;
 var CLEAR_EVENT_THRESHOLD = 0.1;
-var MAX_VALUE = 1000;
+var MAX_VALUE = 700;
 var blocked = [];
 var STRING_FREQUENCIES = [null, 329.63, 246.94, 196.00, 146.83, 110.00, 82.407];
 var HALF_NOTE_STEP = 0.0595;
 var SAMPLING_FREQUENCY = 44100;
-var N = 2048;
+/*var N = 2048;*/
+var N = 16384;
 
 var fullFret = createFullFretNotes();
 var fullFretNotes = {};

@@ -55,10 +55,13 @@ var readingOffset = 0;
 var writingOffset1 = 0;
 var writingOffset2 = -1;
 var initBuffer = true;
+var lastStep = false;
 
 processorNode.onaudioprocess = function(e) {
 
 	var channelData = e.inputBuffer.getChannelData(0);
+
+	console.log('reading offset: ' + readingOffset + ', writing offsets: ' + writingOffset1 + '; ' + writingOffset2);
 
 	// pierwsze napelnienie poczatkowej czesci 
 	if(readingOffset == 0 && writingOffset1 < bufferSize && initBuffer) {
@@ -71,13 +74,14 @@ processorNode.onaudioprocess = function(e) {
 		readingOffset = 0;
 		writingOffset2 = -1;
 		initBuffer = false;
+		lastStep = true;
 		for(var i = 0; i<samplesCount; i++){
 			bufferedData[writingOffset1+i] = channelData[i];
 		}
 	} else {
 		readingOffset += samplesCount;
 
-		if(writingOffset2 < 0 && writingOffset1 >= bufferSize + samplesCount)
+		if(writingOffset2 < 0 && ((!lastStep && writingOffset1 >= bufferSize + samplesCount) || (lastStep && writingOffset1 >= bufferSize)))
 			writingOffset2 = 0;
 
 		if(writingOffset2 >= 0) {
@@ -94,32 +98,32 @@ processorNode.onaudioprocess = function(e) {
 		
 	}
 
-	//console.log('reading offset: ' + readingOffset + ', writing offsets: ' + writingOffset1 + '; ' + writingOffset2);
+	
 
 	// TODO: asynchroniczne wywolanie przez setTimeout
 	setTimeout(function() {
-			// for(var i = 0; i<bufferSize; i++){
-			// 	calculated[i] = bufferedData[readingOffset+i];
-			// }
-		var data = new complex_array.ComplexArray(bufferSize);
-		data.map(function(value, i, n) {
-	  		value.real = bufferedData[i+readingOffset];
-		})
-		var frequencies = data.FFT();
-		
-		frequencies.map(function(frequency, i, n) {
-		  calculated[i] = Math.abs(frequency.real)*100;
-		})
-
-		var peaks = getPeaks(calculated);
-		console.log(peaks);
-
-		for(var p in fullFretNotes) {
-			if(isEvent(p, calculated[p], peaks)) {
-				console.log(fullFretNotes[p]);
-				noteElem.innerHTML = fullFretNotes[p];
+			for(var i = 0; i<bufferSize; i++){
+				calculated[i] = bufferedData[readingOffset+i]*32;
 			}
-		}
+		// var data = new complex_array.ComplexArray(bufferSize);
+		// data.map(function(value, i, n) {
+	 //  		value.real = bufferedData[i+readingOffset];
+		// })
+		// var frequencies = data.FFT();
+		
+		// frequencies.map(function(frequency, i, n) {
+		//   calculated[i] = Math.abs(frequency.real)*32;
+		// })
+
+		// var peaks = getPeaks(calculated);
+		// console.log(peaks);
+
+		// for(var p in fullFretNotes) {
+		// 	if(isEvent(p, calculated[p], peaks)) {
+		// 		console.log(fullFretNotes[p]);
+		// 		noteElem.innerHTML = fullFretNotes[p];
+		// 	}
+		// }
 	}, 1);
 };
 
@@ -402,12 +406,12 @@ function autoCorrelate( buf, sampleRate ) {
 var GRAPH_LENGTH = 1500;
 var EVENT_THRESHOLD = 0.2;
 var CLEAR_EVENT_THRESHOLD = 0.1;
-var MAX_VALUE = 700;
+var MAX_VALUE = 2500;
 var blocked = [];
 var STRING_FREQUENCIES = [null, 329.63, 246.94, 196.00, 146.83, 110.00, 82.407];
 var HALF_NOTE_STEP = 0.0595;
 var SAMPLING_FREQUENCY = 44100;
-/*var N = 2048;*/
+//var N = 2048;
 var N = 16384;
 
 var fullFret = createFullFretNotes();
@@ -485,14 +489,14 @@ function getSoundPosition(string, position){
 		}
 
 			// var iE6Pos 	= getSoundPosition(6, 0);
-			// var iAPos 	= getSoundPosition(5, 0);
+			 var iAPos 	= getSoundPosition(5, 0);
 			// var iDPos 	= getSoundPosition(4, 0);
 			// var iGPos 	= getSoundPosition(3, 0);
 			// var iBPos 	= getSoundPosition(2, 0);
 			// var iE1Pos	= getSoundPosition(1, 0);
 
 			// console.log('E6: ' + iE6Pos);
-			// console.log('A: ' + iAPos);
+			 console.log('A: ' + iAPos);
 			// console.log('D: ' + iDPos);
 			// console.log('G: ' + iGPos);
 			// console.log('B: ' + iBPos);
@@ -567,9 +571,9 @@ function updatePitch( time ) {
 		waveCanvas.stroke();
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.beginPath();
-		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[0]*100+100), 0));
+		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[0]+100), 0));
 		for (var i=1;i<8192;i++) {
-			waveCanvas.lineTo(i,buf[i]||((calculated[i] * 100+100)));
+			waveCanvas.lineTo(i,buf[i]||((calculated[i] +100)));
 		}
 		waveCanvas.stroke();
 	}

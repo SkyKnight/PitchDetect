@@ -54,13 +54,14 @@ var calculated = new Float32Array(bufferSize);
 var readingOffset = 0;
 var writingOffset1 = 0;
 var writingOffset2 = -1;
+var initBuffer = true;
 
 processorNode.onaudioprocess = function(e) {
 
 	var channelData = e.inputBuffer.getChannelData(0);
 
 	// pierwsze napelnienie poczatkowej czesci 
-	if(readingOffset == 0 && writingOffset1 < bufferSize) {
+	if(readingOffset == 0 && writingOffset1 < bufferSize && initBuffer) {
 		for(var i = 0; i<samplesCount; i++){
 			bufferedData[writingOffset1+i] = channelData[i];
 		}
@@ -69,6 +70,7 @@ processorNode.onaudioprocess = function(e) {
 		writingOffset1 = bufferSize - samplesCount;
 		readingOffset = 0;
 		writingOffset2 = -1;
+		initBuffer = false;
 		for(var i = 0; i<samplesCount; i++){
 			bufferedData[writingOffset1+i] = channelData[i];
 		}
@@ -92,30 +94,32 @@ processorNode.onaudioprocess = function(e) {
 		
 	}
 
+	//console.log('reading offset: ' + readingOffset + ', writing offsets: ' + writingOffset1 + '; ' + writingOffset2);
+
 	// TODO: asynchroniczne wywolanie przez setTimeout
 	setTimeout(function() {
-			for(var i = 0; i<bufferSize; i++){
-				calculated[i] = bufferedData[readingOffset+i];
-			}
-		// var data = new complex_array.ComplexArray(bufferSize);
-		// data.map(function(value, i, n) {
-	 //  		value.real = bufferedData[i+readingOffset];
-		// })
-		// var frequencies = data.FFT();
+			// for(var i = 0; i<bufferSize; i++){
+			// 	calculated[i] = bufferedData[readingOffset+i];
+			// }
+		var data = new complex_array.ComplexArray(bufferSize);
+		data.map(function(value, i, n) {
+	  		value.real = bufferedData[i+readingOffset];
+		})
+		var frequencies = data.FFT();
 		
-		// frequencies.map(function(frequency, i, n) {
-		//   calculated[i] = Math.abs(frequency.real)*100;
-		// })
+		frequencies.map(function(frequency, i, n) {
+		  calculated[i] = Math.abs(frequency.real)*100;
+		})
 
-		// var peaks = getPeaks(calculated);
-		// console.log(peaks);
+		var peaks = getPeaks(calculated);
+		console.log(peaks);
 
-		// for(var p in fullFretNotes) {
-		// 	if(isEvent(p, calculated[p], peaks)) {
-		// 		console.log(fullFretNotes[p]);
-		// 		noteElem.innerHTML = fullFretNotes[p];
-		// 	}
-		// }
+		for(var p in fullFretNotes) {
+			if(isEvent(p, calculated[p], peaks)) {
+				console.log(fullFretNotes[p]);
+				noteElem.innerHTML = fullFretNotes[p];
+			}
+		}
 	}, 1);
 };
 

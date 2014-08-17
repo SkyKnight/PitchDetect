@@ -50,6 +50,7 @@ var mediaStreamSource;
 detectionMode = 'ac';
 
 var bufferedData = new Float32Array(bufferSize*2);
+var currentData = new Float32Array(bufferSize);
 var calculated = new Float32Array(bufferSize);
 var readingOffset = 0;
 var writingOffset1 = 0;
@@ -57,11 +58,16 @@ var writingOffset2 = -1;
 var initBuffer = true;
 var lastStep = false;
 
+var initFft = Module.cwrap('initFft', 'number', ['number']);
+var calculateFft = Module.cwrap('calculateFft', 'number', ['number']);
+var clearFft = Module.cwrap('clearFft', 'number', []);
+
 processorNode.onaudioprocess = function(e) {
 
 	var channelData = e.inputBuffer.getChannelData(0);
 
-	console.log('reading offset: ' + readingOffset + ', writing offsets: ' + writingOffset1 + '; ' + writingOffset2);
+	//console.log('reading offset: ' + readingOffset + ', writing offsets: ' + writingOffset1 + '; ' + writingOffset2);
+
 
 	// pierwsze napelnienie poczatkowej czesci 
 	if(readingOffset == 0 && writingOffset1 < bufferSize && initBuffer) {
@@ -69,7 +75,9 @@ processorNode.onaudioprocess = function(e) {
 			bufferedData[writingOffset1+i] = channelData[i];
 		}
 		writingOffset1 += samplesCount;
-	} else if(readingOffset >= bufferSize) {
+	} 
+
+	else if(readingOffset >= bufferSize) {
 		writingOffset1 = bufferSize - samplesCount;
 		readingOffset = 0;
 		writingOffset2 = -1;
@@ -103,13 +111,15 @@ processorNode.onaudioprocess = function(e) {
 	// TODO: asynchroniczne wywolanie przez setTimeout
 	setTimeout(function() {
 			for(var i = 0; i<bufferSize; i++){
-				calculated[i] = bufferedData[readingOffset+i]*32;
+				currentData[i] = bufferedData[readingOffset+i];
 			}
-		// var data = new complex_array.ComplexArray(bufferSize);
-		// data.map(function(value, i, n) {
-	 //  		value.real = bufferedData[i+readingOffset];
-		// })
-		// var frequencies = data.FFT();
+			dataHeap.set(new Uint8Array(currentData.buffer));
+		// Call function and get result
+		calculateFft(dataHeap.byteOffset);
+		var result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, calculated.length);
+		for(var w = 0; w < bufferSize; w++)
+			calculated[w] = Math.abs(result[w]);
+
 		
 		// frequencies.map(function(frequency, i, n) {
 		//   calculated[i] = Math.abs(frequency.real)*32;
@@ -127,7 +137,27 @@ processorNode.onaudioprocess = function(e) {
 	}, 1);
 };
 
+var nDataBytes;
+var dataPtr;
+var dataHeap;
 
+function initFftStuff() {
+	initFft(bufferSize);
+
+	// Get data byte size, allocate memory on Emscripten heap, and get pointer
+	nDataBytes = currentData.length * currentData.BYTES_PER_ELEMENT;
+	dataPtr = Module._malloc(nDataBytes);
+
+	// Copy data to Emscripten heap (directly accessed from Module.HEAPU8)
+	dataHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, nDataBytes);
+	
+}
+
+function clearFftStuff() {
+	// Free memory
+	Module._free(dataHeap.byteOffset);
+
+}
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
@@ -164,6 +194,7 @@ window.onload = function() {
 			for (var i = 0; i < buf.length; i++) {
 				buf[i] = null;
 			};
+			initFftStuff();
 		} else if(previousMode == 'fft2') {
 			processorNode.disconnect();
 			stream.connect(analyser);
@@ -572,7 +603,7 @@ function updatePitch( time ) {
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.beginPath();
 		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[0]+100), 0));
-		for (var i=1;i<8192;i++) {
+		for (var i=1;i<512;i++) {
 			waveCanvas.lineTo(i,buf[i]||((calculated[i] +100)));
 		}
 		waveCanvas.stroke();

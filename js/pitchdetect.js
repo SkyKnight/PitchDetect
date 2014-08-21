@@ -120,7 +120,7 @@ processorNode.onaudioprocess = function(e) {
 		for(var w = 0; w < bufferSize; w++)
 			calculated[w] = Math.abs(result[w]);
 
-		
+		peaks = getPeaks(calculated);
 		// frequencies.map(function(frequency, i, n) {
 		//   calculated[i] = Math.abs(frequency.real)*32;
 		// })
@@ -437,13 +437,15 @@ function autoCorrelate( buf, sampleRate ) {
 var GRAPH_LENGTH = 1500;
 var EVENT_THRESHOLD = 0.2;
 var CLEAR_EVENT_THRESHOLD = 0.1;
-var MAX_VALUE = 2500;
+var MAX_VALUE = 1000;
 var blocked = [];
 var STRING_FREQUENCIES = [null, 329.63, 246.94, 196.00, 146.83, 110.00, 82.407];
 var HALF_NOTE_STEP = 0.0595;
 var SAMPLING_FREQUENCY = 44100;
 //var N = 2048;
 var N = 16384;
+
+var graphScale = .1;
 
 var fullFret = createFullFretNotes();
 var fullFretNotes = {};
@@ -453,17 +455,17 @@ for (var i = 0; i < fullFret.length; i++) {
 		fullFretNotes[getSoundPosition(i+1, j)] = fullFret[i][j];
 	};
 };
-
+var peaks;
 function getPeaks(xRe) {
 			var peaks = [];
 			var clearpeaks = [];
 			for( var x = 0; x < GRAPH_LENGTH; x++){	
-				if(x>1 && xRe[x]>EVENT_THRESHOLD*MAX_VALUE){
+				if(x>1 && xRe[x] * graphScale > EVENT_THRESHOLD*MAX_VALUE){
 					if( xRe [ x ] > xRe [ x+1 ] && xRe [ x ] > xRe [ x-1 ]){
 						peaks.push(x); 
 					}
 				}
-				if(x>1 && xRe[x]>CLEAR_EVENT_THRESHOLD*MAX_VALUE){
+				if(x>1 && xRe[x] * graphScale > CLEAR_EVENT_THRESHOLD*MAX_VALUE){
 					if( xRe [ x ] > xRe [ x+1 ] && xRe [ x ] > xRe [ x-1 ]){
 						clearpeaks.push(x); 
 					}
@@ -565,16 +567,17 @@ function updatePitch( time ) {
 				detuneAmount.innerHTML = Math.abs( detune );
 			}
 		}
-	} else if(detectionMode == 'fft') {
-		analyser.getByteFrequencyData( buf );
-		ac = -1;
-		var peaks = getPeaks(buf);
-		//console.log(peaks);
-
-		for(var p in fullFretNotes) {
-			if(isEvent(p, buf[p], peaks)) {
-				//console.log(fullFretNotes[p]);
-				noteElem.innerHTML = fullFretNotes[p];
+	} else if(detectionMode == 'fft2') {
+		//analyser.getByteFrequencyData( buf );
+		//ac = -1;
+//		var peaks = getPeaks(calculated);
+//		console.log(peaks);
+		if(peaks){
+			for(var p in fullFretNotes) {
+				if(isEvent(p, buf[p], peaks)) {
+					//console.log(fullFretNotes[p]);
+					noteElem.innerHTML = fullFretNotes[p];
+				}
 			}
 		}
 	} else if(detectionMode == 'fft2') {
@@ -586,25 +589,49 @@ function updatePitch( time ) {
 	// TODO: Paint confidence meter on canvasElem here.
 
 	if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
-		waveCanvas.clearRect(0,0,8192,256);
+		waveCanvas.clearRect(0,0,8192,512);
 		waveCanvas.strokeStyle = "red";
 		waveCanvas.beginPath();
 		waveCanvas.moveTo(0,0);
-		waveCanvas.lineTo(0,256);
+		waveCanvas.lineTo(0, 512);
 		waveCanvas.moveTo(128,0);
-		waveCanvas.lineTo(128,256);
+		waveCanvas.lineTo(128, 512);
 		waveCanvas.moveTo(256,0);
-		waveCanvas.lineTo(256,256);
+		waveCanvas.lineTo(256, 512);
 		waveCanvas.moveTo(384,0);
-		waveCanvas.lineTo(384,256);
+		waveCanvas.lineTo(384, 512);
 		waveCanvas.moveTo(512,0);
-		waveCanvas.lineTo(512,256);
+		waveCanvas.lineTo(512, 512);
 		waveCanvas.stroke();
+		
+		//teoretycznie miejsce gdzie powinien być peak dla A 440Hz
+		//163 wzialem z getSoundPosition(1,5) - pierwsza struna, 5 próg
+		waveCanvas.strokeStyle = "blue";
+		waveCanvas.beginPath();
+		waveCanvas.moveTo(163,0);
+		waveCanvas.lineTo(163, 512);
+		waveCanvas.stroke();
+		
+		//poziom ktory wywoluje wsadzenie do peakow
+		waveCanvas.strokeStyle = "green";
+		waveCanvas.beginPath();
+		waveCanvas.moveTo(0, 512 - EVENT_THRESHOLD*MAX_VALUE);
+		waveCanvas.lineTo(8192, 512 - EVENT_THRESHOLD*MAX_VALUE);
+		waveCanvas.stroke();
+		
+		//po wejsciu do peaku, dopiero spadniecie ponizej tego poziomu odblokuje dana czestotliwosc
+		//unikamy dzieki temu "mikrodrgan" (?)
+		waveCanvas.strokeStyle = "yellow";
+		waveCanvas.beginPath();
+		waveCanvas.moveTo(0, 512 - CLEAR_EVENT_THRESHOLD*MAX_VALUE);
+		waveCanvas.lineTo(8192, 512 - CLEAR_EVENT_THRESHOLD*MAX_VALUE);
+		waveCanvas.stroke();
+		
 		waveCanvas.strokeStyle = "black";
 		waveCanvas.beginPath();
-		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[0]+100), 0));
+		waveCanvas.moveTo(0,Math.max(buf[0]||(calculated[0]+512), 0));
 		for (var i=1;i<512;i++) {
-			waveCanvas.lineTo(i,buf[i]||((calculated[i] +100)));
+			waveCanvas.lineTo(i,buf[i]||((calculated[i]* (-graphScale) +512)));
 		}
 		waveCanvas.stroke();
 	}

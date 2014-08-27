@@ -28,7 +28,7 @@ var audioContext = new AudioContext();
 var isPlaying = false;
 var sourceNode = null;
 var analyser = null;
-var samplesCount = 256;
+var samplesCount = 1024;
 var bufferIterations = 0;
 var bufferSize = Math.pow(2,14);
 var processorNode = audioContext.createScriptProcessor(samplesCount, 1, 1);
@@ -62,14 +62,16 @@ var initFft = Module.cwrap('initFft', 'number', ['number']);
 var calculateFft = Module.cwrap('calculateFft', 'number', ['number']);
 var clearFft = Module.cwrap('clearFft', 'number', []);
 
+//var startTime, stopTime;
+var data = new complex_array.ComplexArray(bufferSize);
+
 processorNode.onaudioprocess = function(e) {
 
 	var channelData = e.inputBuffer.getChannelData(0);
+	var outputData = e.outputBuffer.getChannelData(0);
 
 	//console.log('reading offset: ' + readingOffset + ', writing offsets: ' + writingOffset1 + '; ' + writingOffset2);
-
-
-	// pierwsze napelnienie poczatkowej czesci 
+	//pierwsze napelnienie poczatkowej czesci 
 	if(readingOffset == 0 && writingOffset1 < bufferSize && initBuffer) {
 		for(var i = 0; i<samplesCount; i++){
 			bufferedData[writingOffset1+i] = channelData[i];
@@ -106,24 +108,39 @@ processorNode.onaudioprocess = function(e) {
 		
 	}
 
-	
 
 	// TODO: asynchroniczne wywolanie przez setTimeout
 	setTimeout(function() {
-			for(var i = 0; i<bufferSize; i++){
-				currentData[i] = bufferedData[readingOffset+i];
-			}
-			dataHeap.set(new Uint8Array(currentData.buffer));
+		for(var i = 0; i<bufferSize; i++){
+			currentData[i] = bufferedData[readingOffset+i];
+		}
+
+		var startTime = Date.now();
+
+		dataHeap.set(new Uint8Array(currentData.buffer));
 		// Call function and get result
 		calculateFft(dataHeap.byteOffset);
 		var result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, calculated.length);
 		for(var w = 0; w < bufferSize; w++)
 			calculated[w] = Math.abs(result[w]);
 
-		peaks = getPeaks(calculated);
+		var stopTime = Date.now();
+
+		console.log(stopTime - startTime);
+
+		//peaks = getPeaks(calculated);
+		
+		// Use the in-place mapper to populate the data.
+		// data.map(function(value, i, n) {
+		//   value.real = bufferedData[readingOffset+i];
+		// })
+		// var frequencies = data.FFT();
 		// frequencies.map(function(frequency, i, n) {
 		//   calculated[i] = Math.abs(frequency.real)*32;
 		// })
+
+		// var stopTime = Date.now();
+		// console.log(stopTime - startTime);
 
 		// var peaks = getPeaks(calculated);
 		// console.log(peaks);
@@ -161,7 +178,9 @@ function clearFftStuff() {
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
-	request.open("GET", "./sounds/440Hz-A.ogg", true);
+	//request.open("GET", "./sounds/440Hz-A.ogg", true);
+	//request.open("GET", "./sounds/track1.wav", true);
+	request.open("GET", "./sounds/82Hz-E.ogg", true);
 	request.responseType = "arraybuffer";
 	request.onload = function() {
 	  audioContext.decodeAudioData( request.response, function(buffer) { 
@@ -455,6 +474,7 @@ for (var i = 0; i < fullFret.length; i++) {
 		fullFretNotes[getSoundPosition(i+1, j)] = fullFret[i][j];
 	};
 };
+console.log(fullFretNotes);
 var peaks;
 function getPeaks(xRe) {
 			var peaks = [];
@@ -497,7 +517,7 @@ function getPeaks(xRe) {
 
 function isEvent(position, value, peaks ) {
 			if( peaks.length==0){ return false; }
-			if( peaks[0]/position<0.9 || peaks[0]/position > 1.1){
+			if( peaks[0]/position<0.95 || peaks[0]/position > 1.05){
 				return false;
 			} 
 			if(blocked.indexOf(position) != -1){
@@ -540,8 +560,12 @@ function updatePitch( time ) {
 	var ac;
 
 	if(detectionMode == 'ac') {
+		var startTime = Date.now();
 		analyser.getByteTimeDomainData( buf );
 		ac = autoCorrelate( buf, audioContext.sampleRate );
+				var stopTime = Date.now();
+
+		console.log(stopTime - startTime);
 
 	 	if (ac == -1) {
 	 		detectorElem.className = "vague";
@@ -567,15 +591,22 @@ function updatePitch( time ) {
 				detuneAmount.innerHTML = Math.abs( detune );
 			}
 		}
+
 	} else if(detectionMode == 'fft2') {
+			 		detectorElem.className = "vague";
+		 	pitchElem.innerText = "--";
+			noteElem.innerText = "-";
+			detuneElem.className = "";
+			detuneAmount.innerText = "--";
 		//analyser.getByteFrequencyData( buf );
 		//ac = -1;
-//		var peaks = getPeaks(calculated);
-//		console.log(peaks);
-		if(peaks){
+		var pks = getPeaks(calculated);
+		//console.log(peaks);
+		if(pks){
 			for(var p in fullFretNotes) {
-				if(isEvent(p, buf[p], peaks)) {
-					//console.log(fullFretNotes[p]);
+				if(isEvent(p, calculated[p], pks)) {
+					console.log(p);
+
 					noteElem.innerHTML = fullFretNotes[p];
 				}
 			}

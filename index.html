@@ -24,7 +24,9 @@ div.vague { color: lightgrey; }
 <script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
 <script src="js/scales.js"></script>
 <script src="js/complex_array.js"></script>
+<script src="js/fft.js"></script>
 <script src="js/fftcalc.js"></script>
+<script src="js/pd.js"></script>
 <script src="js/pitchdetect.js"></script>
 
 <button onclick="this.innerText = togglePlayback()">use demo audio</button>
@@ -34,7 +36,8 @@ div.vague { color: lightgrey; }
 <div>
 	<label><input type="radio" name="detectionMode" value="ac" checked /> autocorrelate</label>
 	<label><input type="radio" name="detectionMode" value="fft" /> FFT using Web Audio Analyser Node</label>
-	<label><input type="radio" name="detectionMode" value="fft2" /> FFT using Web Audio Script Node</label>
+	<label><input type="radio" name="detectionMode" value="fft2" /> FFT using Web Audio Script Node (FFTW)</label>
+  <label><input type="radio" name="detectionMode" value="fft3" /> FFT using Web Audio Script Node (openTuner)</label>
 </div>
 
 <div id="detector" class="vague">

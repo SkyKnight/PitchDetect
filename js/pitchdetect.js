@@ -58,9 +58,14 @@ var writingOffset2 = -1;
 var initBuffer = true;
 var lastStep = false;
 
+// FFTW test
 var initFft = Module.cwrap('initFft', 'number', ['number']);
 var calculateFft = Module.cwrap('calculateFft', 'number', ['number']);
 var clearFft = Module.cwrap('clearFft', 'number', []);
+
+// open tuner (kiss fft+autocorr)
+var initOTuner = Module.cwrap('init', 'number', ['number']);
+var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number']);
 
 //var startTime, stopTime;
 var data = new complex_array.ComplexArray(bufferSize);
@@ -118,11 +123,27 @@ processorNode.onaudioprocess = function(e) {
 		var startTime = Date.now();
 
 		dataHeap.set(new Uint8Array(currentData.buffer));
-		// Call function and get result
-		calculateFft(dataHeap.byteOffset);
-		var result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, calculated.length);
-		for(var w = 0; w < bufferSize; w++)
-			calculated[w] = Math.abs(result[w]);
+
+		if(detectionMode == 'fft2') {
+			// Call function and get result
+			calculateFft(dataHeap.byteOffset);
+			var result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, calculated.length);
+			for(var w = 0; w < bufferSize; w++)
+				calculated[w] = Math.abs(result[w]);
+
+		} else if(detectionMode == 'fft3') {
+			pitchDataHeap.set(0);
+			volDataHeap.set(0);
+
+			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, pitchDataHeap.byteOffset, volDataHeap.byteOffset);
+
+			if(isValid) {
+				console.log(pitchDataHeap.buffer);
+			}
+			else {
+				console.log('not valid');
+			}
+		}
 
 		var stopTime = Date.now();
 
@@ -176,6 +197,29 @@ function clearFftStuff() {
 
 }
 
+var pitchDataPtr;
+var pitchDataHeap;
+var volDataPtr;
+var volDataHeap;
+
+function initOTunerStuff() {
+	initOTuner(bufferSize);
+
+	// Get data byte size, allocate memory on Emscripten heap, and get pointer
+	nDataBytes = currentData.length * currentData.BYTES_PER_ELEMENT;
+	dataPtr = Module._malloc(nDataBytes);
+
+	// Copy data to Emscripten heap (directly accessed from Module.HEAPU8)
+	dataHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, nDataBytes);
+
+
+	pitchDataPtr = Module._malloc(32);
+	pitchDataHeap = new Uint8Array(Module.HEAPU8.buffer, pitchDataPtr, 32);
+
+	volDataPtr = Module._malloc(32);
+	volDataHeap = new Uint8Array(Module.HEAPU8.buffer, volDataPtr, 32);
+}
+
 window.onload = function() {
 	var request = new XMLHttpRequest();
 	//request.open("GET", "./sounds/440Hz-A.ogg", true);
@@ -206,15 +250,18 @@ window.onload = function() {
 		var previousMode = detectionMode;
 		detectionMode = this.value;
 		var stream = mediaStreamSource || sourceNode;
-		if(detectionMode == 'fft2') {
+		if(detectionMode == 'fft2' || detectionMode == 'fft3') {
 			analyser.disconnect();
 			stream.connect(processorNode);
 			processorNode.connect( audioContext.destination );
 			for (var i = 0; i < buf.length; i++) {
 				buf[i] = null;
 			};
-			initFftStuff();
-		} else if(previousMode == 'fft2') {
+			if(detectionMode == 'fft2')
+				initFftStuff();
+			else
+				initOTunerStuff();
+		} else if(previousMode == 'fft2' || previousMode == 'fft3') {
 			processorNode.disconnect();
 			stream.connect(analyser);
 			audioContext.destination.disconnect();

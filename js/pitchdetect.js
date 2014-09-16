@@ -64,8 +64,8 @@ var calculateFft = Module.cwrap('calculateFft', 'number', ['number']);
 var clearFft = Module.cwrap('clearFft', 'number', []);
 
 // open tuner (kiss fft+autocorr)
-var initOTuner = Module.cwrap('init', 'number', ['number']);
-var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number']);
+// var initOTuner = Module.cwrap('init', 'number', ['number']);
+// var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number']);
 
 //var startTime, stopTime;
 var data = new complex_array.ComplexArray(bufferSize);
@@ -132,13 +132,14 @@ processorNode.onaudioprocess = function(e) {
 				calculated[w] = Math.abs(result[w]);
 
 		} else if(detectionMode == 'fft3') {
-			pitchDataHeap.set(0);
-			volDataHeap.set(0);
+			// pitchDataHeap.set(0);
+			// volDataHeap.set(0);
 
-			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, pitchDataHeap.byteOffset, volDataHeap.byteOffset);
+			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, 0, 0);
 
 			if(isValid) {
-				console.log(pitchDataHeap.buffer);
+				//console.log(Module.getValue(pitchDataPtr, '*'));
+				console.log('ok');
 			}
 			else {
 				console.log('not valid');
@@ -213,11 +214,11 @@ function initOTunerStuff() {
 	dataHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, nDataBytes);
 
 
-	pitchDataPtr = Module._malloc(32);
-	pitchDataHeap = new Uint8Array(Module.HEAPU8.buffer, pitchDataPtr, 32);
+	pitchDataPtr = Module.allocate([0], 'float', ALLOC_STACK);
+	//pitchDataHeap = new Uint8Array(Module.HEAPU8.buffer, pitchDataPtr, 32);
 
-	volDataPtr = Module._malloc(32);
-	volDataHeap = new Uint8Array(Module.HEAPU8.buffer, volDataPtr, 32);
+	volDataPtr = Module.allocate([0], 'float', ALLOC_STACK);
+	//volDataHeap = new Uint8Array(Module.HEAPU8.buffer, volDataPtr, 32);
 }
 
 window.onload = function() {

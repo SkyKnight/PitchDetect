@@ -65,7 +65,7 @@ var lastStep = false;
 
 // open tuner (kiss fft+autocorr)
 var initOTuner = Module.cwrap('init', 'number', ['number']);
-var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number']);
+var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number', 'number', 'number']);
 
 //var startTime, stopTime;
 var data = new complex_array.ComplexArray(bufferSize);
@@ -137,12 +137,24 @@ processorNode.onaudioprocess = function(e) {
 			pitchData[0] = 0;
 			pitchDataHeap.set(new Uint8Array(pitchData.buffer));
 
-			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, pitchDataHeap.byteOffset, 0);
+			volData[0] = 0;
+			volDataHeap.set(new Uint8Array(volData.buffer));
+
+			noteData[0] = 0;
+			noteDataHeap.set(new Uint8Array(noteData.buffer));
+
+			octaveData[0] = 0;
+			octaveDataHeap.set(new Uint8Array(octaveData.buffer));
+
+			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, pitchDataHeap.byteOffset, volDataHeap.byteOffset,
+			 noteDataHeap.byteOffset, octaveDataHeap.byteOffset);
 
 			if(isValid) {
 				//console.log(Module.getValue(pitchDataPtr, '*'));
 				var pitchResult = new Float32Array(pitchDataHeap.buffer, pitchDataHeap.byteOffset, 1);
+				var noteResult = new Int32Array(noteDataHeap.buffer, noteDataHeap.byteOffset, 1);
 				console.log(pitchResult);
+				console.log(noteResult);
 				console.log('ok');
 			}
 			else {
@@ -206,8 +218,22 @@ var pitchDataPtr;
 var pitchDataHeap;
 var volDataPtr;
 var volDataHeap;
+var noteDataPtr;
+var noteDataHeap;
+var octaveDataPtr;
+var octaveDataHeap;
+
 var pitchData = new Float32Array(1);
 pitchData[0] = 0;
+
+var volData = new Float32Array(1);
+volData[0] = 0;
+
+var noteData = new Int32Array(1);
+noteData[0] = 0;
+
+var octaveData = new Int32Array(1);
+octaveData[0] = 0;
 
 function initOTunerStuff() {
 	initOTuner(bufferSize);
@@ -223,8 +249,15 @@ function initOTunerStuff() {
 	//pitchDataPtr = Module.allocate([0], 'float', ALLOC_STACK);
 	pitchDataHeap = new Uint8Array(Module.HEAPU8.buffer, pitchDataPtr, 32);
 
-	volDataPtr = Module.allocate([0], 'float', ALLOC_STACK);
+	volDataPtr = Module._malloc(volData.BYTES_PER_ELEMENT);
 	//volDataHeap = new Uint8Array(Module.HEAPU8.buffer, volDataPtr, 32);
+	volDataHeap = new Uint8Array(Module.HEAPU8.buffer, volDataPtr, 32);
+
+	noteDataPtr = Module._malloc(noteData.BYTES_PER_ELEMENT);
+	noteDataHeap = new Uint8Array(Module.HEAPU8.buffer, noteDataPtr, 32);
+
+	octaveDataPtr = Module._malloc(octaveData.BYTES_PER_ELEMENT);
+	octaveDataHeap = new Uint8Array(Module.HEAPU8.buffer, octaveDataPtr, 32);
 }
 
 window.onload = function() {

@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-window.AudioContext = window.AudioContext || window.webkitAudioContext;
+window.AudioContext = window.AudioContext || window.webkitAudioContext; 
 
 var audioContext = new AudioContext();
 var isPlaying = false;
@@ -44,6 +44,8 @@ var detectorElem,
 	detuneAmount,
 	detectionMode,
 	detectionModeElem;
+var lastNote = '';
+var lastPitch = '';
 
 var mediaStreamSource;
 
@@ -149,13 +151,18 @@ processorNode.onaudioprocess = function(e) {
 			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, pitchDataHeap.byteOffset, volDataHeap.byteOffset,
 			 noteDataHeap.byteOffset, octaveDataHeap.byteOffset);
 
+			lastNote = '';
+			lastPitch = '';
+
 			if(isValid) {
 				//console.log(Module.getValue(pitchDataPtr, '*'));
 				var pitchResult = new Float32Array(pitchDataHeap.buffer, pitchDataHeap.byteOffset, 1);
 				var noteResult = new Int32Array(noteDataHeap.buffer, noteDataHeap.byteOffset, 1);
-				console.log(pitchResult);
-				console.log(noteResult);
-				console.log('ok');
+				//console.log(pitchResult);
+				//console.log(noteResult);
+				lastNote = noteStrings[noteResult[0]%12];
+				lastPitch = pitchResult[0];
+				//console.log('ok');
 			}
 			else {
 				console.log('not valid');
@@ -262,9 +269,9 @@ function initOTunerStuff() {
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
-	//request.open("GET", "./sounds/440Hz-A.ogg", true);
+	request.open("GET", "./sounds/440Hz-A.ogg", true);
 	//request.open("GET", "./sounds/track1.wav", true);
-	request.open("GET", "./sounds/82Hz-E.ogg", true);
+	//request.open("GET", "./sounds/82Hz-E.ogg", true);
 	request.responseType = "arraybuffer";
 	request.onload = function() {
 	  audioContext.decodeAudioData( request.response, function(buffer) { 
@@ -698,8 +705,18 @@ function updatePitch( time ) {
 				}
 			}
 		}
-	} else if(detectionMode == 'fft2') {
-
+	} else if(detectionMode == 'fft3') {
+		if(lastNote == '') {
+			detectorElem.className = "vague";
+		 	pitchElem.innerText = "--";
+			noteElem.innerText = "-";
+			detuneElem.className = "";
+			detuneAmount.innerText = "--";
+		} else {
+		 	detectorElem.className = "confident";
+		 	pitchElem.innerText = lastPitch ;
+			noteElem.innerHTML = lastNote;
+		}
 	}
 
 // 	detectorElem.className = (confidence>50)?"confident":"vague";

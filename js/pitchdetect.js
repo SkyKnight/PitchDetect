@@ -59,13 +59,13 @@ var initBuffer = true;
 var lastStep = false;
 
 // FFTW test
-var initFft = Module.cwrap('initFft', 'number', ['number']);
-var calculateFft = Module.cwrap('calculateFft', 'number', ['number']);
-var clearFft = Module.cwrap('clearFft', 'number', []);
+// var initFft = Module.cwrap('initFft', 'number', ['number']);
+// var calculateFft = Module.cwrap('calculateFft', 'number', ['number']);
+// var clearFft = Module.cwrap('clearFft', 'number', []);
 
 // open tuner (kiss fft+autocorr)
-// var initOTuner = Module.cwrap('init', 'number', ['number']);
-// var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number']);
+var initOTuner = Module.cwrap('init', 'number', ['number']);
+var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number']);
 
 //var startTime, stopTime;
 var data = new complex_array.ComplexArray(bufferSize);
@@ -117,7 +117,7 @@ processorNode.onaudioprocess = function(e) {
 	// TODO: asynchroniczne wywolanie przez setTimeout
 	setTimeout(function() {
 		for(var i = 0; i<bufferSize; i++){
-			currentData[i] = bufferedData[readingOffset+i];
+			currentData[i] = bufferedData[readingOffset+i]*1000;
 		}
 
 		var startTime = Date.now();
@@ -134,11 +134,15 @@ processorNode.onaudioprocess = function(e) {
 		} else if(detectionMode == 'fft3') {
 			// pitchDataHeap.set(0);
 			// volDataHeap.set(0);
+			pitchData[0] = 0;
+			pitchDataHeap.set(new Uint8Array(pitchData.buffer));
 
-			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, 0, 0);
+			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, pitchDataHeap.byteOffset, 0);
 
 			if(isValid) {
 				//console.log(Module.getValue(pitchDataPtr, '*'));
+				var pitchResult = new Float32Array(pitchDataHeap.buffer, pitchDataHeap.byteOffset, 1);
+				console.log(pitchResult);
 				console.log('ok');
 			}
 			else {
@@ -202,6 +206,8 @@ var pitchDataPtr;
 var pitchDataHeap;
 var volDataPtr;
 var volDataHeap;
+var pitchData = new Float32Array(1);
+pitchData[0] = 0;
 
 function initOTunerStuff() {
 	initOTuner(bufferSize);
@@ -213,9 +219,9 @@ function initOTunerStuff() {
 	// Copy data to Emscripten heap (directly accessed from Module.HEAPU8)
 	dataHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, nDataBytes);
 
-
-	pitchDataPtr = Module.allocate([0], 'float', ALLOC_STACK);
-	//pitchDataHeap = new Uint8Array(Module.HEAPU8.buffer, pitchDataPtr, 32);
+	pitchDataPtr = Module._malloc(pitchData.BYTES_PER_ELEMENT);
+	//pitchDataPtr = Module.allocate([0], 'float', ALLOC_STACK);
+	pitchDataHeap = new Uint8Array(Module.HEAPU8.buffer, pitchDataPtr, 32);
 
 	volDataPtr = Module.allocate([0], 'float', ALLOC_STACK);
 	//volDataHeap = new Uint8Array(Module.HEAPU8.buffer, volDataPtr, 32);

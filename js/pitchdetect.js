@@ -119,7 +119,7 @@ processorNode.onaudioprocess = function(e) {
 	// TODO: asynchroniczne wywolanie przez setTimeout
 	setTimeout(function() {
 		for(var i = 0; i<bufferSize; i++){
-			currentData[i] = bufferedData[readingOffset+i]*1000;
+			currentData[i] = bufferedData[readingOffset+i]*32384;
 		}
 
 		var startTime = Date.now();
@@ -272,6 +272,7 @@ window.onload = function() {
 	request.open("GET", "./sounds/440Hz-A.ogg", true);
 	//request.open("GET", "./sounds/track1.wav", true);
 	//request.open("GET", "./sounds/82Hz-E.ogg", true);
+	//request.open("GET", "./sounds/whistling3.ogg", true);
 	request.responseType = "arraybuffer";
 	request.onload = function() {
 	  audioContext.decodeAudioData( request.response, function(buffer) { 

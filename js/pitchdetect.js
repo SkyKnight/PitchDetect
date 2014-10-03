@@ -46,6 +46,7 @@ var detectorElem,
 	detectionModeElem;
 var lastNote = '';
 var lastPitch = '';
+var lastFreq = '';
 
 var mediaStreamSource;
 
@@ -67,7 +68,7 @@ var lastStep = false;
 
 // open tuner (kiss fft+autocorr)
 var initOTuner = Module.cwrap('init', 'number', ['number']);
-var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number', 'number', 'number']);
+var getPitchFromNewBuffer = Module.cwrap('GetPitchFromNewBuffer', 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
 
 //var startTime, stopTime;
 var data = new complex_array.ComplexArray(bufferSize);
@@ -148,20 +149,26 @@ processorNode.onaudioprocess = function(e) {
 			octaveData[0] = 0;
 			octaveDataHeap.set(new Uint8Array(octaveData.buffer));
 
+			freqData[0] = 0;
+			freqDataHeap.set(new Uint8Array(freqData.buffer));
+
 			var isValid = getPitchFromNewBuffer(dataHeap.byteOffset, pitchDataHeap.byteOffset, volDataHeap.byteOffset,
-			 noteDataHeap.byteOffset, octaveDataHeap.byteOffset);
+			 noteDataHeap.byteOffset, octaveDataHeap.byteOffset, freqDataHeap.byteOffset);
 
 			lastNote = '';
 			lastPitch = '';
+			lastFreq = '';
 
 			if(isValid) {
 				//console.log(Module.getValue(pitchDataPtr, '*'));
 				var pitchResult = new Float32Array(pitchDataHeap.buffer, pitchDataHeap.byteOffset, 1);
 				var noteResult = new Int32Array(noteDataHeap.buffer, noteDataHeap.byteOffset, 1);
+				var freqResult = new Float32Array(freqDataHeap.buffer, freqDataHeap.byteOffset, 1);
 				//console.log(pitchResult);
 				//console.log(noteResult);
 				lastNote = noteStrings[noteResult[0]%12];
 				lastPitch = pitchResult[0];
+				lastFreq = freqResult[0];
 				//console.log('ok');
 			}
 			else {
@@ -229,6 +236,8 @@ var noteDataPtr;
 var noteDataHeap;
 var octaveDataPtr;
 var octaveDataHeap;
+var freqDataPtr;
+var freqDataHeap;
 
 var pitchData = new Float32Array(1);
 pitchData[0] = 0;
@@ -241,6 +250,9 @@ noteData[0] = 0;
 
 var octaveData = new Int32Array(1);
 octaveData[0] = 0;
+
+var freqData = new Int32Array(1);
+freqData[0] = 0;
 
 function initOTunerStuff() {
 	initOTuner(bufferSize);
@@ -265,6 +277,9 @@ function initOTunerStuff() {
 
 	octaveDataPtr = Module._malloc(octaveData.BYTES_PER_ELEMENT);
 	octaveDataHeap = new Uint8Array(Module.HEAPU8.buffer, octaveDataPtr, 32);
+
+	freqDataPtr = Module._malloc(octaveData.BYTES_PER_ELEMENT);
+	freqDataHeap = new Uint8Array(Module.HEAPU8.buffer, freqDataPtr, 32);
 }
 
 window.onload = function() {
@@ -714,7 +729,7 @@ function updatePitch( time ) {
 			detuneAmount.innerText = "--";
 		} else {
 		 	detectorElem.className = "confident";
-		 	pitchElem.innerText = lastPitch ;
+		 	pitchElem.innerText = lastFreq ;
 			noteElem.innerHTML = lastNote;
 		}
 	}

@@ -168,7 +168,7 @@ processorNode.onaudioprocess = function(e) {
 				//console.log(noteResult);
 				lastNote = noteStrings[noteResult[0]%12];
 				lastPitch = pitchResult[0];
-				lastFreq = freqResult[0];
+				lastFreq = freqResult[0].toFixed(2);
 				//console.log('ok');
 			}
 			else {
@@ -284,10 +284,10 @@ function initOTunerStuff() {
 
 window.onload = function() {
 	var request = new XMLHttpRequest();
-	request.open("GET", "./sounds/440Hz-A.ogg", true);
+	//request.open("GET", "./sounds/440Hz-A.ogg", true);
 	//request.open("GET", "./sounds/track1.wav", true);
 	//request.open("GET", "./sounds/82Hz-E.ogg", true);
-	//request.open("GET", "./sounds/whistling3.ogg", true);
+	request.open("GET", "./sounds/whistling3.ogg", true);
 	request.responseType = "arraybuffer";
 	request.onload = function() {
 	  audioContext.decodeAudioData( request.response, function(buffer) { 
